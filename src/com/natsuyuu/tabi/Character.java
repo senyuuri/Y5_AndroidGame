@@ -20,7 +20,7 @@ public class Character {
 
 	public void drawSelf(Canvas canvas, Paint paint) {
 		//canvas.drawCircle(x, y, r, paint);
-		canvas.drawBitmap(bmp,x-r,y-r-15, paint);
+		canvas.drawBitmap(bmp,x-r,y-r-25, paint);
 	}
 	//Set x-coordinate
 	public void setX(float x) {

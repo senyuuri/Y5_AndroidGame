@@ -3,6 +3,7 @@ package com.natsuyuu.tabi;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.Vector;
 
 import javax.security.auth.PrivateCredentialPermission;
 import javax.xml.transform.Templates;
@@ -28,6 +29,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.graphics.Paint.Style;
 import android.graphics.RectF;
 import android.hardware.Sensor;
@@ -77,8 +79,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 	private Bitmap bmpchar;
 
 	// Menu, button, background bitmap resources
-	private Bitmap bmpMenu_help, bmpMenu_play, bmpMenu_exit, bmpMenu_resume, bmpMenu_replay, bmp_menubg, bmp_gamebg, bmpMenuBack, bmp_smallbg, bmpMenu_menu,
-			bmp_helpbg, bmpBody_lost, bmpBody_win, bmpWinbg, bmpLostbg;
+	private Bitmap bmpbackground;
 	// Create button
 	
 	// --- Sensor ---
@@ -97,6 +98,8 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 	private Body Meteor;
 	private Body contact_test;
 	private int collision_status;
+	private Vector<Body> destroyMao;
+	private Vector<Body> destroyMeteor;
 	
 	//Boundary
 	private Body boundary_bottom;
@@ -104,8 +107,10 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 	private Body boundary_right;
 	
 	//Game data
-	private int life, remainjumb, level, Meteor_num, aim_num, remain_time;
+	private Float life;
+	private int remainjumb, level, Meteor_num, aim_num, remain_time,wait_time;
 	private Random rm;
+	private Boolean prestart;
 	
 	//Timer
 	public Timer timer;
@@ -141,7 +146,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		// Instantiation of body bitmaps
 		bmpchar = BitmapFactory.decodeResource(getResources(), R.drawable.character1_small);
 		// Instantiation of other bitmaps
-		
+		bmpbackground = BitmapFactory.decodeResource(getResources(), R.drawable.background);
 		// Start accelerator sensor 
 		sm = (SensorManager) context.getSystemService(context.SENSOR_SERVICE);
 		sensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -173,7 +178,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 			}
 		};
 		
-		sm.registerListener(mySensorListener, sensor, SensorManager.SENSOR_DELAY_GAME);
+		sm.registerListener(mySensorListener, sensor, SensorManager.SENSOR_DELAY_UI);
 		
 		
 		
@@ -195,7 +200,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		boundary_bottom = createBoundary(0, screenH, screenW, 1, true);
 		boundary_left = createBoundary(0, 0, 1,screenH, true);
 		boundary_right = createBoundary(screenW, 0, 1, screenH, true);
-		Body testboundary2 = createBoundary(0, 200, 30, 1, true);
+		//Body testboundary2 = createBoundary(0, 200, 30, 1, true);
 		
 		/**Create collision area(basket)
 		Body basket_left = createBoundary(300, 300, 1, 50, true);
@@ -204,11 +209,11 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		**/
 		
 		// Contact listener test
-		contact_test = createBoundary(270, 500, 30, 30, true);
+		//contact_test = createBoundary(270, 500, 30, 30, true);
 		collision_status = 0;
 		//contact_test.getShapeList().getFilterData().groupIndex = 2;
 		//contact_test.getShapeList().getFilterData().categoryBits = 4;
-		contact_test.getShapeList().m_isSensor = true;
+		//contact_test.getShapeList().m_isSensor = true;
 		
 		screenW = this.getWidth();
 		screenH = this.getHeight();
@@ -220,15 +225,18 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		// Initialise game data
 		// life, remainjumb,level, Meteor_num, aim_num, remain_time;
 		// TODO SQLite implementation
-		life = 3;
+		life = 5f;
 		level = 1;
 		Meteor_num = 1;
 		aim_num = level*10;
-		remain_time = 120;
+		remain_time = 64;
 		gameIsLost=false;
 		gameIsWin = false;
 		gameIsPause = false;
-		
+		destroyMao = new Vector<Body>();
+		destroyMeteor = new Vector<Body>();
+		wait_time = 3;
+		prestart = true;
 		
 		flag = true;
 		th = new Thread(this);
@@ -249,7 +257,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 			cd.density = 1; // Non-static, have mass
 		}
 		cd.friction = 0.8f; 
-		cd.restitution = 0.8f; 
+		cd.restitution = 0.3f; 
 		cd.radius = r / RATE; 
 		// Create rigid body
 		BodyDef bd = new BodyDef();
@@ -344,26 +352,6 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 			canvas = sfh.lockCanvas();
 			if(canvas!=null){
 				canvas.drawColor(Color.WHITE);
-				// --- Test info ---
-				canvas.drawText("x:"+acc_x, 500, 20, paint);
-				canvas.drawText("y:"+acc_y, 500, 40, paint);
-				canvas.drawText("z:"+acc_z, 500, 60, paint);
-				//canvas.drawBitmap(bmpchar, 0,0, paint);
-				/**
-				if(collision_status == 1){
-					canvas.drawText("cstatus:add",450,80,paint);
-				}else if (collision_status == 2) {
-					canvas.drawText("cstatus:persist",450,80,paint);
-				}else if (collision_status==3) {
-					canvas.drawText("cstatus:remove",450,80,paint);
-				}else{
-					canvas.drawText("cstatus:n/a",450,80,paint);
-				};
-				**/
-				canvas.drawText("Life "+life, 480,100,paint);
-				canvas.drawText("Time "+ remain_time, 480, 120, paint);
-				canvas.drawText("Meteor " +Meteor_num, 480, 140, paint);
-				canvas.drawText("Aim " +aim_num, 480, 160, paint);
 				
 				
 			}
@@ -376,6 +364,8 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 				
 				// --- Pause, win or lost status ---d
 				if (gameIsPause || gameIsLost || gameIsWin) {
+					//Draw background
+					canvas.drawBitmap(bmpbackground, 0, 0, paint);
 					// Draw translucent rectangle background
 					Paint paintB = new Paint();
 					paintB.setAlpha(0x77);
@@ -396,9 +386,41 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 					canvas.drawText("Game Win", 260, 400, paint);
 					break;
 				}
-
 				//Draw background
-
+				canvas.drawBitmap(bmpbackground, 0, 0, paint);
+				if(prestart){
+					Paint paintB = new Paint();
+					paintB.setAlpha(0x77);
+					canvas.drawRect(0, 0, screenW, screenH, paintB);
+					paintB.setTextSize(35);
+					paintB.setTypeface(Typeface.DEFAULT_BOLD);
+					canvas.drawText(""+wait_time, 270, 480, paintB);
+					break;
+				}
+				/* --- Test info ---
+				canvas.drawText("x:"+acc_x, 500, 20, paint);
+				canvas.drawText("y:"+acc_y, 500, 40, paint);
+				canvas.drawText("z:"+acc_z, 500, 60, paint);
+				//canvas.drawBitmap(bmpchar, 0,0, paint);
+				 * 
+				 */
+				/**
+				if(collision_status == 1){
+					canvas.drawText("cstatus:add",450,80,paint);
+				}else if (collision_status == 2) {
+					canvas.drawText("cstatus:persist",450,80,paint);
+				}else if (collision_status==3) {
+					canvas.drawText("cstatus:remove",450,80,paint);
+				}else{
+					canvas.drawText("cstatus:n/a",450,80,paint);
+				};
+				**/
+				canvas.drawText("Life "+life, 480,100,paint);
+				canvas.drawText("Time "+ remain_time, 480, 120, paint);
+				canvas.drawText("Meteor " +Meteor_num, 480, 140, paint);
+				canvas.drawText("Aim " +aim_num, 480, 160, paint);
+				
+				
 				//Iterate bodies in world
 				Body body = world.getBodyList();
 				Vec2 mposition;
@@ -417,6 +439,9 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 							redpaint.setStyle(Style.STROKE);
 							redpaint.setAntiAlias(true);
 							tBall.drawSelf(canvas, redpaint);
+						}
+						if(tBall.getGround()){
+							destroyMeteor.addElement(body);
 						}
 						
 					}else
@@ -454,6 +479,19 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 					}
 				
 					body = body.m_next;
+					//Draw HP column
+					//paint C - HP
+					Paint paintC = new Paint();
+					paintC.setARGB(200, 162, 205, 90);
+					//paint D - Text
+					Paint paintD = new Paint();
+					paintD.setAntiAlias(true);
+					paintD.setStyle(Style.STROKE);
+					paintD.setTextSize(20);
+					canvas.drawText("Life", 20, 50, paintD);
+					canvas.drawText("Time "+ remain_time, 450, 50, paintD);
+					canvas.drawRect(60, 30, 60+life/5*300, 60, paintC);
+					
 				};
 				
 			
@@ -479,30 +517,44 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		case GAMESTATE_HELP:
 			break;
 		case GAMESTATE_GAMEING:
-		    if(count == Meteor_num*100){
-		    	// Random appearance point 
-		    	int x_rm = rm.nextInt(540);
-		    	// Random angle direction (left/right)
-		    	float angle_rm = rm.nextFloat();
-		    	Vec2 initForce;
-		    	if(angle_rm<0.5){
-		    		initForce = new Vec2(-600,0);
-		    	}else{
-		    		initForce = new Vec2(600,0);
-		    	}
-		    	//Decide to create meteor or mao
-		    	float obj_rm = rm.nextFloat();
-		    	if(obj_rm < 0.5){
-			    	// Create meteor
-			    	Body body = createMeteor(x_rm, 0, 10, false);
-			    	body.applyForce(initForce, body.getWorldCenter());
-		    	}else{
-			    	Body body = createMao(x_rm, 0, 10, false);
-			    	body.applyForce(initForce, body.getWorldCenter());
-		    	}
-		    	count = 0;   	
-		    }
-		    
+			if(prestart){
+				Thread sleppThread = null;
+				try {
+					sleppThread.sleep(1000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				wait_time -= 1;
+				if(wait_time == 0){
+					prestart = false;
+				}
+				
+			}
+			    if(count == Meteor_num*50){
+			    	// Random appearance point 
+			    	int x_rm = rm.nextInt(540);
+			    	// Random angle direction (left/right)
+			    	float angle_rm = rm.nextFloat();
+			    	Vec2 initForce;
+			    	if(angle_rm<0.5){
+			    		initForce = new Vec2(-600,0);
+			    	}else{
+			    		initForce = new Vec2(600,0);
+			    	}
+			    	//Decide to create meteor or mao
+			    	float obj_rm = rm.nextFloat();
+			    	if(obj_rm < 0.5){
+				    	// Create meteor
+				    	Body body = createMeteor(x_rm, 0, 10, false);
+				    	body.applyForce(initForce, body.getWorldCenter());
+			    	}else{
+				    	Body body = createMao(x_rm, 0, 10, false);
+				    	body.applyForce(initForce, body.getWorldCenter());
+			    	}
+			    	count = 0;   	
+			    }
+
+		    /* Body delete test
 		    if (destroy_count == 2000) {
 		    	//Iterate bodies in world
 				Body body = world.getBodyList();
@@ -513,10 +565,30 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 				}
 				
 			}
+			*/
 			
 			if (!gameIsPause && !gameIsLost && !gameIsWin) {
 			
 				world.step(timeStep, iterations);
+				//Destroy Mao
+				if(destroyMao.size() != 0){
+					for(int i=0; i<destroyMao.size();i++){
+						world.destroyBody(destroyMao.elementAt(i));
+						//Log.i(TAG, "Try destroy element"+destroyMeteor.elementAt(i).toString());
+						destroyMao.removeElementAt(i);
+						
+					}
+				}
+				//Destroy Metreor
+				if(destroyMeteor.size() != 0){
+					for(int i=0; i<destroyMeteor.size();i++){
+						world.destroyBody(destroyMeteor.elementAt(i));
+						//Log.i(TAG, "Try destroy element"+destroyMeteor.elementAt(i).toString());
+						destroyMeteor.removeElementAt(i);
+						
+					}
+				}
+				
 				}
 			if(remain_time<0){
 				gameIsWin = true;
@@ -591,6 +663,9 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		}
 		
 	}
+	
+	
+	
 	@Override
 	public void surfaceChanged(SurfaceHolder arg0, int arg1, int arg2, int arg3) {
 		// TODO Auto-generated method stub
@@ -608,15 +683,27 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		//Collision: mcharacter & meteor
 		if((arg0.shape1.getBody() == mcharacter) && (arg0.shape2.getBody().m_userData instanceof Meteor)){
 			life -= 1;
-		}else if ((arg0.shape2.getBody().m_userData instanceof Meteor)&&(arg0.shape1.getBody() == mcharacter) ) {
+			destroyMeteor.addElement(arg0.shape2.getBody());
+		}else if ((arg0.shape1.getBody().m_userData instanceof Meteor)&&(arg0.shape2.getBody() == mcharacter) ) {
 			life -= 1;
+	        destroyMeteor.addElement(arg0.shape1.getBody());
 		}
 		
-		//Collision: mcharacter & meteor
+		//Collision: mcharacter & Mao
 		if((arg0.shape1.getBody() == mcharacter) && (arg0.shape2.getBody().m_userData instanceof Mao)){
 			aim_num -= 1;
-		}else if ((arg0.shape2.getBody().m_userData instanceof Mao)&&(arg0.shape1.getBody() == mcharacter) ) {
+			destroyMao.addElement(arg0.shape2.getBody());
+
+		}else if ((arg0.shape1.getBody().m_userData instanceof Mao)&&(arg0.shape2.getBody() == mcharacter) ) {
 			aim_num -= 1;
+			destroyMao.addElement(arg0.shape1.getBody());
+		}
+		
+		// Collision: boundary_bottom & Mao
+		if((arg0.shape1.getBody() == boundary_bottom) && (arg0.shape2.getBody().m_userData instanceof Mao)){
+			destroyMao.addElement(arg0.shape2.getBody());
+		}else if ((arg0.shape1.getBody().m_userData instanceof Mao)&&(arg0.shape2.getBody() == boundary_bottom) ) {
+			destroyMao.addElement(arg0.shape2.getBody());
 		}
 		
 		
@@ -631,10 +718,12 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 			//collision_status = 1;
 			Meteor tb = (Meteor) arg0.shape2.getBody().m_userData;
 			tb.setGround(true);
-		}else if ((arg0.shape2.getBody().m_userData instanceof Meteor)&&(arg0.shape1.getBody() == boundary_bottom) ) {
+		}else if ((arg0.shape1.getBody().m_userData instanceof Meteor)&&(arg0.shape2.getBody() == boundary_bottom) ) {
 			Meteor tb = (Meteor) arg0.shape1.getBody().m_userData;
 			tb.setGround(true);
 		}
+		
+		
 	}
 	@Override
 	public void remove(ContactPoint arg0) {
