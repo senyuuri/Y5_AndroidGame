@@ -1,5 +1,6 @@
 package com.natsuyuu.tabi;
 
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 
@@ -8,16 +9,19 @@ public class Meteor {
 	private float y;
 	private float r;
 	private Boolean ground;
+	private Bitmap bmp;
 
-	public Meteor(float x, float y, float r) {
+	public Meteor(float x, float y, float r, Bitmap bmp) {
 		this.x = x;
 		this.y = y;
 		this.r = r;
+		this.bmp = bmp;
 		ground = false;
 	}
 	
 	public void drawSelf(Canvas canvas, Paint paint) {
-		canvas.drawCircle(x, y, r, paint);
+		//canvas.drawCircle(x, y, r, paint);
+		canvas.drawBitmap(bmp, x-r, y-r, paint);
 	}
 	//Set x-coordinate
 	public void setX(float x) {

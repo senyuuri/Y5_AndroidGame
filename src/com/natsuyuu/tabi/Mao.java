@@ -1,5 +1,6 @@
 package com.natsuyuu.tabi;
 
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 
@@ -8,16 +9,20 @@ public class Mao {
 	private float y;
 	private float r;
 	private Boolean ground;
+	private Bitmap bitmap;
 
-	public Mao(float x, float y, float r) {
+	public Mao(float x, float y, float r, Bitmap bitmap) {
 		this.x = x;
 		this.y = y;
 		this.r = r;
+		this.bitmap = bitmap;
 		ground = false;
+		
 	}
 	
 	public void drawSelf(Canvas canvas, Paint paint) {
-		canvas.drawCircle(x, y, r, paint);
+		//canvas.drawCircle(x, y, r, paint);
+		canvas.drawBitmap(bitmap, x-r, y-r, paint);
 	}
 	//Set x-coordinate
 	public void setX(float x) {

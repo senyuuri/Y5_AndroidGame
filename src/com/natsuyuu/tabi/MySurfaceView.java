@@ -20,8 +20,6 @@ import org.jbox2d.dynamics.contacts.ContactPoint;
 import org.jbox2d.dynamics.contacts.ContactResult;
 
 
-
-import android.R.integer;
 import android.app.Service;
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -45,6 +43,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.SurfaceHolder.Callback;
+import com.natsuyuu.StopMaO.R;
 
 public class MySurfaceView extends SurfaceView implements Callback, Runnable, ContactListener {
 	private Thread th;
@@ -58,7 +57,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 	private World world;
 	private AABB aabb;
 	private Vec2 gravity;
-	private float timeStep = 1f / 30f;
+	private float timeStep = 1f / 25f;
 	// For result accuracy, large value may cause latency
 	private int iterations = 5;
 	// Main body
@@ -80,6 +79,8 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 
 	// Menu, button, background bitmap resources
 	private Bitmap bmpbackground;
+	private Bitmap bmpMao;
+	private Bitmap bmpmeteor;
 	// Create button
 	
 	// --- Sensor ---
@@ -105,6 +106,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 	private Body boundary_bottom;
 	private Body boundary_left;
 	private Body boundary_right;
+	private Body boundary_top;
 	
 	//Game data
 	private Float life;
@@ -123,6 +125,14 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 			handler.sendMessage(message); 
 		} 
 	}; 
+	
+	public Timer jumptimer;
+	public TimerTask jumptimertaskTimer = new TimerTask() {
+		@Override
+		public void run(){
+			
+		}
+	};
 	
 	
 	public MySurfaceView(Context context) {
@@ -145,8 +155,11 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		world = new World(aabb, gravity, true);
 		// Instantiation of body bitmaps
 		bmpchar = BitmapFactory.decodeResource(getResources(), R.drawable.character1_small);
+		
 		// Instantiation of other bitmaps
 		bmpbackground = BitmapFactory.decodeResource(getResources(), R.drawable.background);
+		bmpMao = BitmapFactory.decodeResource(getResources(),R.drawable.mao);
+		bmpmeteor = BitmapFactory.decodeResource(getResources(),R.drawable.meteor);
 		// Start accelerator sensor 
 		sm = (SensorManager) context.getSystemService(context.SENSOR_SERVICE);
 		sensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -162,7 +175,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 					//z>0, phone faces upward
 					acc_z = event.values[2]; 
 					temp_y = mcharacter.getLinearVelocity().y;
-					Vec2 vSensorVec2 = new Vec2(-acc_x*2,temp_y);
+					Vec2 vSensorVec2 = new Vec2(-acc_x*3,temp_y);
 					mcharacter.setLinearVelocity(vSensorVec2);
 					// character bitmap direction
 					if(acc_x>0){
@@ -200,6 +213,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		boundary_bottom = createBoundary(0, screenH, screenW, 1, true);
 		boundary_left = createBoundary(0, 0, 1,screenH, true);
 		boundary_right = createBoundary(screenW, 0, 1, screenH, true);
+		boundary_top = createBoundary(0, -5, screenW, 1, true);
 		//Body testboundary2 = createBoundary(0, 200, 30, 1, true);
 		
 		/**Create collision area(basket)
@@ -245,6 +259,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		//TODO change status
 		gameState = GAMESTATE_GAMEING;
 		timer = new Timer();
+		
 		timer.schedule(timertask, 1, 1000);
 	}
 	
@@ -281,7 +296,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 			cd.density = 1; // Non-static, have mass
 		}
 		cd.friction = 0.8f; 
-		cd.restitution = 0.4f; 
+		cd.restitution = 0.45f; 
 		cd.radius = r / RATE; 
 		// Create rigid body
 		BodyDef bd = new BodyDef();
@@ -289,7 +304,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		//bd.position.set(x/RATE, y/RATE); 
 		// Create body
 		Body body = world.createBody(bd);
-		body.m_userData = new Meteor(x, y, r);
+		body.m_userData = new Meteor(x, y, r,bmpmeteor);
 		body.createShape(cd);
 		body.setMassFromShapes(); 
 		body.allowSleeping(false);
@@ -313,7 +328,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 		//bd.position.set(x/RATE, y/RATE); 
 		// Create body
 		Body body = world.createBody(bd);
-		body.m_userData = new Mao(x, y, r);
+		body.m_userData = new Mao(x, y, r,bmpMao);
 		body.createShape(cd);
 		body.setMassFromShapes(); 
 		body.allowSleeping(false);
@@ -361,6 +376,11 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 			case GAMESTATE_HELP:
 				break;
 			case GAMESTATE_GAMEING:
+				Paint paintZ = new Paint();
+				paintZ.setAlpha(0x77);
+				canvas.drawRect(0, 0, screenW, screenH, paintZ);
+				paintZ.setTextSize(40);
+				paintZ.setTypeface(Typeface.DEFAULT_BOLD);
 				
 				// --- Pause, win or lost status ---d
 				if (gameIsPause || gameIsLost || gameIsWin) {
@@ -378,12 +398,16 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 				} else
 				// --- Lost ---
 				if (gameIsLost) {
-					
+					canvas.drawText("Game Over", 285, 480, paintZ);
+					paintZ.setTextSize(30);
+					canvas.drawText("Try again£¿ > <", 320, 520, paintZ);
 					break;
 				} else
 				// --- Win ---
 				if (gameIsWin) {
-					canvas.drawText("Game Win", 260, 400, paint);
+					canvas.drawText("Win ;)", 380, 480, paintZ);
+					paintZ.setTextSize(30);
+					canvas.drawText("Score " +((10-aim_num)*1000 +1000), 320, 520, paintZ);
 					break;
 				}
 				//Draw background
@@ -392,9 +416,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 					Paint paintB = new Paint();
 					paintB.setAlpha(0x77);
 					canvas.drawRect(0, 0, screenW, screenH, paintB);
-					paintB.setTextSize(35);
-					paintB.setTypeface(Typeface.DEFAULT_BOLD);
-					canvas.drawText(""+wait_time, 270, 480, paintB);
+					canvas.drawText(""+wait_time, 270, 480, paintZ);
 					break;
 				}
 				/* --- Test info ---
@@ -490,6 +512,7 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 					paintD.setTextSize(20);
 					canvas.drawText("Life", 20, 50, paintD);
 					canvas.drawText("Time "+ remain_time, 450, 50, paintD);
+					canvas.drawText((10-aim_num)+"/10 MaO", 430, 80, paintD);
 					canvas.drawRect(60, 30, 60+life/5*300, 60, paintC);
 					
 				};
@@ -530,25 +553,30 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 				}
 				
 			}
-			    if(count == Meteor_num*50){
+			
+			if (gameIsPause || gameIsLost || gameIsWin) {
+				
+			}
+			
+			    if(count == Meteor_num*40){
 			    	// Random appearance point 
 			    	int x_rm = rm.nextInt(540);
 			    	// Random angle direction (left/right)
 			    	float angle_rm = rm.nextFloat();
 			    	Vec2 initForce;
 			    	if(angle_rm<0.5){
-			    		initForce = new Vec2(-600,0);
+			    		initForce = new Vec2(-4000,0);
 			    	}else{
-			    		initForce = new Vec2(600,0);
+			    		initForce = new Vec2(4000,0);
 			    	}
 			    	//Decide to create meteor or mao
 			    	float obj_rm = rm.nextFloat();
 			    	if(obj_rm < 0.5){
 				    	// Create meteor
-				    	Body body = createMeteor(x_rm, 0, 10, false);
+				    	Body body = createMeteor(x_rm, 0, 30, false);
 				    	body.applyForce(initForce, body.getWorldCenter());
 			    	}else{
-				    	Body body = createMao(x_rm, 0, 10, false);
+				    	Body body = createMao(x_rm, 0, 30, false);
 				    	body.applyForce(initForce, body.getWorldCenter());
 			    	}
 			    	count = 0;   	
@@ -594,6 +622,10 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 				gameIsWin = true;
 				timer.cancel();
 			}
+			if(life<=0){
+				gameIsLost = true;
+				timer.cancel();
+			}
 		}
 	}
 	
@@ -632,17 +664,19 @@ public class MySurfaceView extends SurfaceView implements Callback, Runnable, Co
 			//Log.d(TAG, pointX+", "+pointY+": "+event.toString());
 			
 			//if screen is pressed
-			if (event.getAction() == MotionEvent.ACTION_DOWN || event.getAction() == MotionEvent.ACTION_MOVE) {
-				Vec2 vVelocity = new Vec2(0, -10);
-				mcharacter.setLinearVelocity(vVelocity);
-				Log.d(TAG,"Try change velocity");
-				//remainjumb --;
-				
-				//press released
-			} else if (event.getAction() == MotionEvent.ACTION_UP) {
-				
+			if(mcharacter.getPosition().y*RATE>800){
+				if (event.getAction() == MotionEvent.ACTION_DOWN || event.getAction() == MotionEvent.ACTION_MOVE) {
+					Vec2 vVelocity = new Vec2(0, -10);
+					mcharacter.setLinearVelocity(vVelocity);
+					Log.d(TAG,"Try change velocity");
+					//remainjumb --;
+					
+					//press released
+				} else if (event.getAction() == MotionEvent.ACTION_UP) {
+					
+					}
+				break;
 				}
-			break;
 			}
 			
 		return true;
